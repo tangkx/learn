@@ -15,4 +15,6 @@
 - ptype 变量名 --> 打印变量的类型
 - set argc = 4 --> 可以给变量赋值
 - display 变量名 --> 跟踪变量的值变化
+- info display --> 查看所有跟踪变量
+- undisplay 跟踪编号 --> 删除对应变量跟踪
 
