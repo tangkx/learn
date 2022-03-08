@@ -1,5 +1,7 @@
 # 高性能Mysql study notes
 
+### 1 MySQL架构与历史
+
 1.1 事务特性 (ACID原则)
 * 原子性(atomicity)
 * 一致性(consistency)
@@ -123,7 +125,9 @@ mysql> set session transaction isolation level "隔离级别";
 
   保存这两个额外系统版本号，使大多数读操作都可以不用加锁。MVCC只在**提交读**和**可重复读**这两个隔离级别下工作。因为**未提交读**总是读取最新的数据行，而**可串行化**会对所有读取的行加锁，所有与MVCC不兼容。
 
- 4.1 选择优化的数据类型
+### 4 Schema与数据类型优化
+
+4.1 选择优化的数据类型
   
 * 更小的通常更好
 
@@ -224,3 +228,112 @@ mysql> select e from enum_test order by field(e, 'apple', 'dog', 'fish');
   * 把日期和时间封装到格式为 YYYYMMDDHHMMSS的整数中，与时区无关。使用8个字节存储空间。
 
 * timestamp
+  
+  * 保存从1970年1月1日午夜以来的秒数，与unix时间戳相同。
+  * 使用四个字节的存储空间。因此范围比 datetime小。
+  * Mysql提供 from_unixtime( ) 函数把unix时间戳转换为日期，unix_timestamp( ) 函数把日期转换为 unix时间戳。
+  * 显示值依赖时区。
+  * 默认为 not null。
+
+4.1.5 位数据类型
+
+* bit
+  
+  * 存储最小单位为 1位，最大存储长度为 64位。
+  * MyISAM会打包存储所有的bit列，其他引擎会为每个bit列使用足够存储的最小整数类型来存放（所有除MyISAM以外的其他引擎并不能节省存储空间）。
+  * Mysql把 bit 类型当作字符串类型处理。
+
+* set
+   
+   * 一系列打包的位的集合，可以有效的利用存储空间。
+   * Mysql提供 find_in_set( )，field( ) 这样的函数，方便再查询中使用。
+   * 缺点是改变列的定义的代价较高。一般来说，也无法在 set 列上通过索引查找。
+   * sql使用
+    
+     ```
+     mysql> create table acl(perms set('CAN_READ', 'CAN_WRITE', 'CAN_DELETE') not null);
+     mysql> insert into acl(perms) values ('CAN_READ,CAN_DELETE');
+     mysql> select perms from acl where find_in_set('CAN_READ', perms);
+     ```
+
+4.1.7 特殊类型数据
+
+* 应该用32位无符号整数存储IP地址，MySQL提供 INET_ATON( )和INET_NTOA( ) 函数来进行转换。
+
+
+4.2 MySQL schema设计中的陷阱
+
+* 太多的列
+* 太多的关联
+* 过度的使用枚举
+* 使用集合做变相的枚举
+* 在使用其它方式代替 NULL 时过于极端
+
+4.3 范式和反范式
+
+4.3.1 范式的优点与缺点
+
+* 优点
+  
+  * 范式更新操作比反范式快。
+  * 当数据较好地范式化时，就只有很少或者没有重复数据，所有只需要修改更少的数据。
+  * 范式化的表通常更少，可以更好地放在内存里，所有执行操作会更快。
+  * 很少有多余的数据意味着检索列表数据时更少需要 distinct 或者 group by 语句。
+
+* 缺点
+
+  范式化的设计通常需要关联，这在稍微复杂的一些查询语句进行查询时可能需要至少一次关联。这不但代价昂贵，也可能使一些索引策略无效。
+
+4.3.2 反范式的优点与缺点
+
+* 优点
+  
+  * 可以很好地避免关联。
+  * 当数据比内存大时这可能比关联快得多，因为这样避免了随机IO。
+
+* 缺点
+  
+  * 参考范式的优点，与之相反。
+
+4.5 加快 ALTER TABLE 操作的速度
+
+* MySQL所有的 MODIFY COLUMN 操作都将导致表重建。
+* 直接修改 .frm 文件而不涉及表数据，不会导致表重建，操作更快。
+  
+**Tips**：ALTER TABLE 允许使用 ALTER COLUMN、MODIFY COLUMN、CHANGE COLUMN 语句修改列，这三种操作都是不一样的。
+
+4.5.1 只修改 .frm 文件
+
+* 下面操作可能不需要重建表
+  
+  * 移除（不是增加）一个列的 AUTO_INCREMENT 属性。
+  * 增加、移除、或更改 ENUM 和 SET 常量。如果移除的是已有行数据用到其值的常量，查询将回返回一个空字符串值。
+
+  基本技术是为想要的表结构创建一个新的 .frm 文件，然后用它替换掉已经存在的那张表的 .frm 文件。像下面这样：
+
+  * 创建一张有相同结构的空表，并进行所需要的修改。
+  * 执行 FLUSH TABLES WITH READ LOCK。这将会关闭所有正在使用的表，并且禁止任何表被打开。
+  * 交换 .frm 文件。
+  * 执行 UNLOCK TABLES 来释放第二步的读锁。
+
+4.5.2 快速创建索引
+
+* 为了高效地载入数据到 MyISAM 表，有一个常用的技巧是先禁用索引、载入数据，然后重新启用索引。
+  
+  ```
+  mysql> alter table load_data disable keys;
+
+  mysql> alter table load_data enable keys;
+  ```
+  这个技巧能够发挥作用，是因为构建索引的工作被延迟到数据完全载入以后，这个时候已经可以通过排序来构建索引了，会快很多。并且使得索引树的碎片更少、更紧凑。**因为 disable keys 只对非唯一索引有效，所以这个办法对唯一索引无效**。
+
+* 在InnoDB中有类似技巧，先删除所有的非唯一索引，然后增加新的列，最后重新创建删除掉的索引。
+
+### 5 创建高性能索引
+
+5.1 索引基础
+
+5.1.1 索引的类型
+
+* B-Tree索引
+* 哈希索引
