@@ -23,7 +23,7 @@ void backpack(vector<int>& weightV, vector<int>& valueV, int weight, vector<vect
     }
 }
 int main() {
-    int weight = 8
+    int weight = 8;
 	vector<int> weightV(1,0);
 	weightV.push_back(0);
 	weightV.push_back(1);
