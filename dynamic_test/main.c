@@ -1,22 +1,16 @@
 #include <stdio.h>
-#include <setjmp.h>
 
-__thread int number;
-jmp_buf b;
-void f()
+void my_init(void)
 {
-    longjmp(b, 0);
+    printf("Hello ");
 }
+
+typedef void (*ctor_t) (void);
+
+ctor_t __attribute__((section (".ctors"))) my_init_p = &my_init;
 
 int main(void)
 {
-    if(setjmp(b))
-        printf("World!\n");
-    else
-    {
-        printf("Hello ");
-        f();
-    }
-
+    printf("World!\n");
     return 0;
 }
