@@ -1,16 +1,23 @@
 #include <stdio.h>
-
-void my_init(void)
-{
-    printf("Hello ");
-}
-
-typedef void (*ctor_t) (void);
-
-ctor_t __attribute__((section (".ctors"))) my_init_p = &my_init;
+#include <stdint.h>
+#include <limits.h>
 
 int main(void)
 {
-    printf("World!\n");
+    uint32_t a = (12 << 24) | (34 << 16) | (56 << 8) | 78;
+    unsigned char* dd = ((unsigned char*)&a) + 4;
+    unsigned char* ss = ((unsigned char*)&a);
+
+
+    printf("a is : %d\n", dd[-1]);
+    printf("a is : %d\n", dd[-2]);
+    printf("a is : %d\n", dd[-3]);
+    printf("a is : %d\n", dd[-4]);
+
+    printf("a is : %d\n", ss[0]);
+    printf("a is : %d\n", ss[1]);
+    printf("a is : %d\n", ss[2]);
+    printf("a is : %d\n", ss[3]);
+    
     return 0;
 }
