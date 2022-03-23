@@ -55,6 +55,8 @@ void mini_crt_call_exit_routine();
 // atexit
 typedef void (*atexit_func_t)(void);
 int atexit(atexit_func_t func);
+typedef void (*cxa_func_t)(void *);
+int __cxa_atexit(cxa_func_t func, void *arg, void *);
 
 #ifdef __cplusplus
 }

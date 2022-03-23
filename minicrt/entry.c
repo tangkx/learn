@@ -25,12 +25,15 @@ void mini_crt_entry(void) {
     crt_fatal_error("IO initialize failed");
   }
 
+  do_global_ctors();
+
   ret = main(argc, argv);
   exit(ret);
 }
 
 void exit(int exit_code) {
 
+  mini_crt_call_exit_routine();
   asm("movl %0, %%ebx \n\t"
       "movl $1, %%eax \n\t"
       "int $0x80 \n\t"
