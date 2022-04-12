@@ -176,3 +176,14 @@ smallobject_allocator::deallocate(void *p, size_t size) {
 	free_block->_next = temp;
 	temp = free_block;
 }
+
+class small_alloc {
+public:
+	static void *operator new(size_t size) {
+		return smallobject_allocator::instance().allocate(size);
+	}
+
+	static void operator delete(void *p, size_t size) {
+		smallobject_allocator::instance().deallocate(p, size);
+	}
+};
