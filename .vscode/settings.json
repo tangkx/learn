@@ -10,5 +10,9 @@
         "typeinfo": "cpp",
         "kernel.h": "c"
     },
+    "C_Cpp.clang_format_path": "/usr/bin/clang-format",
+    "C_Cpp.clang_format_fallbackStyle": "LLVM",
+    "C_Cpp.default.intelliSenseMode": "linux-gcc-x64",
+    "editor.formatOnSave": true,
     "cmake.configureOnOpen": false
 }
